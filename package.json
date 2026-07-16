@@ -1,0 +1,16 @@
+{
+  "name": "internship-portal",
+  "version": "1.0.0",
+  "description": "Simple C237 Internship Portal",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "ejs": "^6.0.1",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "multer": "^2.2.0",
+    "mysql2": "^3.23.0"
+  }
+}

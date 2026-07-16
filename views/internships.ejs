@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internships - Internship Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+    <%- include('partials/navbar') %>
+
+    <div class="container mt-4">
+        <h2>Available Internships</h2>
+
+        <% if (message) { %>
+            <div class="alert alert-success"><%= message %></div>
+        <% } %>
+
+        <!-- ==========================================
+        Done by: YAP CHIEN TING QUINA (25041331)
+        Feature: Search, School, Diploma and Category Filters
+        ========================================== -->
+        <form action="/internships" method="GET" class="row g-2 mb-4">
+            <div class="col-md-3">
+                <label for="search" class="form-label">Search:</label>
+                <input type="text" id="search" name="search" class="form-control"
+                    value="<%= search %>" placeholder="Company, job title or location">
+            </div>
+
+            <% if (user.role === 'admin') { %>
+                <div class="col-md-2">
+                    <label for="school" class="form-label">School:</label>
+                    <select id="school" name="school" class="form-select">
+                        <option value="">All Schools</option>
+                        <% for (const schoolName in schoolDiplomas) { %>
+                            <option value="<%= schoolName %>"
+                                <%= selectedSchool === schoolName ? 'selected' : '' %>>
+                                <%= schoolName %> - <%= schoolNames[schoolName] %>
+                            </option>
+                        <% } %>
+                    </select>
+                </div>
+            <% } else { %>
+                <div class="col-md-2">
+                    <label class="form-label">School:</label>
+                    <input type="text" class="form-control" value="<%= selectedSchool || 'Not set' %>" readonly>
+                </div>
+            <% } %>
+
+            <div class="col-md-3">
+                <label for="diploma" class="form-label">Diploma:</label>
+                <select id="diploma" name="diploma" class="form-select">
+                    <option value="">All Diplomas</option>
+                    <% for (const schoolName in schoolDiplomas) { %>
+                        <% if (user.role === 'admin' || selectedSchool === schoolName) { %>
+                            <% for (let i = 0; i < schoolDiplomas[schoolName].length; i++) { %>
+                                <option value="<%= schoolDiplomas[schoolName][i] %>" data-school="<%= schoolName %>"
+                                    <%= selectedDiploma === schoolDiplomas[schoolName][i] ? 'selected' : '' %>>
+                                    <%= schoolDiplomas[schoolName][i] %>
+                                </option>
+                            <% } %>
+                        <% } %>
+                    <% } %>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label for="category" class="form-label">Interest:</label>
+                <select id="category" name="category" class="form-select">
+                    <option value="">All Interests</option>
+                    <% for (let i = 0; i < internshipCategories.length; i++) { %>
+                        <option value="<%= internshipCategories[i] %>"
+                            <%= selectedCategory === internshipCategories[i] ? 'selected' : '' %>>
+                            <%= internshipCategories[i] %>
+                        </option>
+                    <% } %>
+                </select>
+            </div>
+
+            <div class="col-md-2 align-self-end">
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <a href="/internships" class="btn btn-secondary">Clear</a>
+            </div>
+        </form>
+
+        <!-- ==========================================
+        Shared contribution:
+        Done by: ZIN WITYEE AUNG (25040225) - role-based visibility
+        Done by: ZELIA TAN LING RUI (25046792) - add internship entry point
+        ========================================== -->
+        <% if (user.role === 'admin') { %>
+            <p><a href="/addInternship" class="btn btn-primary">Add Internship</a></p>
+        <% } %>
+
+        <!-- ==========================================
+        Done by: ZELIA TAN LING RUI (25046792)
+        Feature: Internship List Display and CRUD Controls
+        ========================================== -->
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th>Job Title</th>
+                        <th>School</th>
+                        <th>Diploma</th>
+                        <th>Category</th>
+                        <th>Location</th>
+                        <th>Allowance</th>
+                        <th>Closing Date</th>
+                        <th>View</th>
+                        <% if (user.role === 'student') { %>
+                            <th>Saved</th>
+                        <% } %>
+                        <% if (user.role === 'admin') { %>
+                            <th>Edit</th>
+                            <th>Delete</th>
+                        <% } %>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% for (let i = 0; i < internships.length; i++) { %>
+                        <tr>
+                            <td><%= internships[i].companyName %></td>
+                            <td><%= internships[i].jobTitle %></td>
+                            <td><%= internships[i].school || '-' %></td>
+                            <td><%= internships[i].diploma || '-' %></td>
+                            <td><%= internships[i].category || '-' %></td>
+                            <td><%= internships[i].location %></td>
+                            <td>$<%= Number(internships[i].allowance).toFixed(2) %></td>
+                            <td>
+                                <%= internships[i].closingDate %>
+                                <!-- Done by: YAP CHIEN TING QUINA (25041331) - Closing Soon display -->
+                                <% if (internships[i].closingSoon) { %><br>Closing Soon<% } %>
+                            </td>
+                            <td>
+                                <a href="/internship/<%= internships[i].internshipId %>">View</a>
+                            </td>
+                            <!-- ==========================================
+                            Shared contribution:
+                            Done by: ZIN WITYEE AUNG (25040225) - student role visibility
+                            Done by: YAP CHIEN TING QUINA (25041331) - save and unsave controls
+                            ========================================== -->
+                            <% if (user.role === 'student') { %>
+                                <td>
+                                    <% if (internships[i].isSaved) { %>
+                                        <form action="/unsaveInternship/<%= internships[i].internshipId %>" method="POST">
+                                            <button type="submit" class="btn btn-link p-0">Unsave</button>
+                                        </form>
+                                    <% } else { %>
+                                        <form action="/saveInternship/<%= internships[i].internshipId %>" method="POST">
+                                            <button type="submit" class="btn btn-link p-0">Save</button>
+                                        </form>
+                                    <% } %>
+                                </td>
+                            <% } %>
+                            <!-- ==========================================
+                            Shared contribution:
+                            Done by: ZIN WITYEE AUNG (25040225) - admin role visibility
+                            Done by: ZELIA TAN LING RUI (25046792) - edit and delete controls
+                            ========================================== -->
+                            <% if (user.role === 'admin') { %>
+                                <td>
+                                    <a href="/editInternship/<%= internships[i].internshipId %>">Edit</a>
+                                </td>
+                                <td>
+                                    <form action="/deleteInternship/<%= internships[i].internshipId %>" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-link p-0 align-baseline"
+                                            onclick="return confirm('Are you sure you want to delete this internship?')">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </td>
+                            <% } %>
+                        </tr>
+                    <% } %>
+
+                    <% if (internships.length === 0) { %>
+                        <tr>
+                            <td colspan="<%= user.role === 'admin' ? 11 : 10 %>">No internships found.</td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <!-- ==========================================
+    Done by: YAP CHIEN TING QUINA (25041331)
+    Feature: Dynamic School and Diploma Filtering
+    ========================================== -->
+    <script>
+        const schoolSelect = document.getElementById('school');
+        const diplomaSelect = document.getElementById('diploma');
+
+        function updateDiplomas() {
+            if (!schoolSelect || !diplomaSelect) {
+                return;
+            }
+
+            for (let i = 1; i < diplomaSelect.options.length; i++) {
+                const option = diplomaSelect.options[i];
+                const matches = !schoolSelect.value || option.dataset.school === schoolSelect.value;
+                option.hidden = !matches;
+                option.disabled = !matches;
+            }
+            if (diplomaSelect.selectedOptions[0] && diplomaSelect.selectedOptions[0].disabled) {
+                diplomaSelect.value = '';
+            }
+        }
+
+        if (schoolSelect) {
+            schoolSelect.addEventListener('change', updateDiplomas);
+        }
+        updateDiplomas();
+    </script>
+</body>
+</html>

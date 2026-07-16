@@ -1,0 +1,41 @@
+<!-- ==========================================
+Shared contribution:
+Done by: ZIN WITYEE AUNG (25040225) - login state and role-based visibility
+Done by: ZELIA TAN LING RUI (25046792) - internship entry point
+Done by: WONG ZHI LI (25033271) - application management entry points
+Feature: Portal Home Navigation
+========================================== -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internship Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+    <%- include('partials/navbar') %>
+
+    <div class="container mt-4">
+        <h2>Internship Portal</h2>
+
+        <% if (user) { %>
+            <p>Welcome, <%= user.username %>. You are logged in as <%= user.role %>.</p>
+            <a href="/internships" class="btn btn-primary">View Internships</a>
+
+            <% if (user.role === 'student') { %>
+                <a href="/myApplications" class="btn btn-secondary">My Applications</a>
+            <% } %>
+
+            <% if (user.role === 'admin') { %>
+                <a href="/applications" class="btn btn-secondary">View Applications</a>
+            <% } %>
+        <% } else { %>
+            <p>Students can search and apply for internships. Admins can manage internships and applications.</p>
+            <a href="/login" class="btn btn-primary">Login</a>
+            <a href="/register" class="btn btn-secondary">Register as Student</a>
+        <% } %>
+    </div>
+</body>
+</html>
