@@ -7,26 +7,31 @@ Feature: Resume Selection, Cover Letter and Application Submission
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apply for Internship - Internship Portal</title>
+    <title>Apply for Internship - RP Internship Portal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body>
     <%- include('partials/navbar') %>
 
-    <div class="container mt-4">
-        <h2>Apply for Internship</h2>
-        <p><strong>Company:</strong> <%= internship.companyName %></p>
-        <p><strong>Job Title:</strong> <%= internship.jobTitle %></p>
-        <p><strong>Closing Date:</strong> <%= internship.closingDate || 'Not specified' %></p>
+    <div class="container mt-5">
+        <h1>Apply for Internship</h1>
+        <p>Choose a resume and submit your application.</p>
+
+        <div class="card p-3 mb-4">
+            <h4>Internship</h4>
+            <p><strong>Company:</strong> <%= internship.companyName %></p>
+            <p><strong>Job Title:</strong> <%= internship.jobTitle %></p>
+            <p><strong>Closing Date:</strong> <%= internship.closingDate || 'Not specified' %></p>
+        </div>
 
         <% if (error) { %>
             <div class="alert alert-danger"><%= error %></div>
         <% } %>
 
-        <form action="/apply/<%= internship.internshipId %>" method="POST">
+        <form action="/apply/<%= internship.internshipId %>" method="POST" class="card p-3">
             <div class="mb-3">
-                <label for="resumeId" class="form-label">Select Resume:</label>
+                <label for="resumeId" class="form-label">Selected Resume:</label>
                 <select id="resumeId" name="resumeId" class="form-select" required>
                     <option value="">Select a resume</option>
                     <% for (let i = 0; i < documents.length; i++) { %>
