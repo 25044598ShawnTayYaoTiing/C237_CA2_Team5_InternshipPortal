@@ -18,10 +18,10 @@
             <div class="alert alert-success"><%= message %></div>
         <% } %>
 
-        <!-- ==========================================
-        Done by: YAP CHIEN TING QUINA (25041331)
+        <!-- =====================================================
+        Done By: YAP CHIEN TING QUINA 25041331
         Feature: Search, School, Diploma and Category Filters
-        ========================================== -->
+        ===================================================== -->
         <form action="/internships" method="GET" class="card p-3 mb-4">
             <div class="row g-3">
                 <div class="col-md-3">
@@ -87,19 +87,18 @@
             </div>
         </form>
 
-        <!-- ==========================================
-        Shared contribution:
-        Done by: ZIN WITYEE AUNG (25040225) - role-based visibility
-        Done by: ZELIA TAN LING RUI (25046792) - add internship entry point
-        ========================================== -->
         <% if (user.role === 'admin') { %>
+            <!-- =====================================================
+            Done By: ZELIA TAN LING RUI 25046792
+            Feature: Add Internship Entry Point
+            ===================================================== -->
             <p><a href="/addInternship" class="btn btn-primary">Add Internship</a></p>
         <% } %>
 
-        <!-- ==========================================
-        Done by: ZELIA TAN LING RUI (25046792)
-        Feature: Internship List Display and CRUD Controls
-        ========================================== -->
+        <!-- =====================================================
+        Done By: ZELIA TAN LING RUI 25046792
+        Feature: Internship List Display
+        ===================================================== -->
         <div class="table-responsive">
             <table class="table table-striped table-bordered align-middle">
                 <thead>
@@ -140,19 +139,15 @@
                             <td>$<%= Number(internships[i].allowance).toFixed(2) %></td>
                             <td>
                                 <%= internships[i].closingDate %>
-                                <!-- Done by: YAP CHIEN TING QUINA (25041331) - Closing Soon display -->
+                                <!-- Done By: YAP CHIEN TING QUINA 25041331 - Closing Soon display -->
                                 <% if (internships[i].closingSoon) { %><br><span class="badge bg-warning text-dark">Closing Soon</span><% } %>
                             </td>
                             <td>
                                 <a href="/internship/<%= internships[i].internshipId %>" class="btn btn-dark btn-sm">View</a>
                             </td>
-                            <!-- ==========================================
-                            Shared contribution:
-                            Done by: ZIN WITYEE AUNG (25040225) - student role visibility
-                            Done by: YAP CHIEN TING QUINA (25041331) - save and unsave controls
-                            ========================================== -->
                             <% if (user.role === 'student') { %>
                                 <td>
+                                    <!-- Done By: YAP CHIEN TING QUINA 25041331 - Save and unsave controls -->
                                     <% if (internships[i].isSaved) { %>
                                         <form action="/unsaveInternship/<%= internships[i].internshipId %>" method="POST">
                                             <button type="submit" class="btn btn-secondary btn-sm">Unsave</button>
@@ -164,16 +159,13 @@
                                     <% } %>
                                 </td>
                             <% } %>
-                            <!-- ==========================================
-                            Shared contribution:
-                            Done by: ZIN WITYEE AUNG (25040225) - admin role visibility
-                            Done by: ZELIA TAN LING RUI (25046792) - edit and delete controls
-                            ========================================== -->
                             <% if (user.role === 'admin') { %>
                                 <td>
+                                    <!-- Done By: ZELIA TAN LING RUI 25046792 - Edit internship control -->
                                     <a href="/editInternship/<%= internships[i].internshipId %>" class="btn btn-warning btn-sm">Edit</a>
                                 </td>
                                 <td>
+                                    <!-- Done By: ZELIA TAN LING RUI 25046792 - Delete internship control -->
                                     <form action="/deleteInternship/<%= internships[i].internshipId %>" method="POST" class="d-inline">
                                         <button type="submit" class="btn btn-danger btn-sm"
                                             onclick="return confirm('Are you sure you want to delete this internship?')">
@@ -194,10 +186,10 @@
             </table>
         </div>
     </div>
-    <!-- ==========================================
-    Done by: YAP CHIEN TING QUINA (25041331)
+    <!-- =====================================================
+    Done By: YAP CHIEN TING QUINA 25041331
     Feature: Dynamic School and Diploma Filtering
-    ========================================== -->
+    ===================================================== -->
     <script>
         const schoolSelect = document.getElementById('school');
         const diplomaSelect = document.getElementById('diploma');

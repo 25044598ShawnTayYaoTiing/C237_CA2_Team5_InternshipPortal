@@ -22,10 +22,10 @@
             <div class="alert alert-danger"><%= error %></div>
         <% } %>
 
-        <!-- ==========================================
-        Done by: ZELIA TAN LING RUI (25046792)
+        <!-- =====================================================
+        Done By: ZELIA TAN LING RUI 25046792
         Feature: Individual Internship Details
-        ========================================== -->
+        ===================================================== -->
         <div class="card p-3 mb-4">
             <h4><%= internship.jobTitle %></h4>
             <p><strong>Company Name:</strong> <%= internship.companyName %></p>
@@ -56,7 +56,7 @@
                         <th>Closing Date</th>
                         <td>
                             <%= internship.closingDate %>
-                            <!-- Done by: YAP CHIEN TING QUINA (25041331) - Closing Soon display -->
+                            <!-- Done By: YAP CHIEN TING QUINA 25041331 - Closing Soon display -->
                             <% if (internship.closingSoon) { %>
                                 <span class="badge bg-warning text-dark">Closing Soon</span>
                             <% } %>
@@ -69,12 +69,11 @@
             <p><strong>Requirements:</strong><br><%= internship.requirements %></p>
         </div>
 
-        <!-- ==========================================
-        Shared contribution:
-        Done by: ZIN WITYEE AUNG (25040225) - student role visibility
-        Done by: SHAWN TAY YAO TING (25044598) - application entry point and closing checks
-        ========================================== -->
         <% if (user.role === 'student') { %>
+            <!-- =====================================================
+            Done By: SHAWN TAY YAO TING 25044598
+            Feature: Application Entry Point and Closing Checks
+            ===================================================== -->
             <% if (hasApplied) { %>
                 <div class="alert alert-info">You have already applied for this internship.</div>
             <% } else if (!internship.isOpen) { %>
@@ -83,10 +82,10 @@
                 <a href="/apply/<%= internship.internshipId %>" class="btn btn-primary">Apply</a>
             <% } %>
 
-            <!-- ==========================================
-            Done by: YAP CHIEN TING QUINA (25041331)
+            <!-- =====================================================
+            Done By: YAP CHIEN TING QUINA 25041331
             Feature: Save and Unsave Internship Controls
-            ========================================== -->
+            ===================================================== -->
             <% if (internship.isSaved) { %>
                 <form action="/unsaveInternship/<%= internship.internshipId %>" method="POST" class="d-inline">
                     <button type="submit" class="btn btn-secondary">Unsave</button>
@@ -98,12 +97,11 @@
             <% } %>
         <% } %>
 
-        <!-- ==========================================
-        Shared contribution:
-        Done by: ZIN WITYEE AUNG (25040225) - admin role visibility
-        Done by: ZELIA TAN LING RUI (25046792) - edit internship entry point
-        ========================================== -->
         <% if (user.role === 'admin') { %>
+            <!-- =====================================================
+            Done By: ZELIA TAN LING RUI 25046792
+            Feature: Edit Internship Entry Point
+            ===================================================== -->
             <a href="/editInternship/<%= internship.internshipId %>" class="btn btn-warning">Edit</a>
         <% } %>
 

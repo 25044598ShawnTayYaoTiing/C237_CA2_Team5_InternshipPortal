@@ -1,8 +1,7 @@
-<!-- ==========================================
-Done by: ZIN WITYEE AUNG (25040225)
+<!-- =====================================================
+Done By: ZIN WITYEE AUNG 25040225
 Feature: Role-Based Navbar Visibility and Authentication Links
-This navbar is shared with the feature owners identified below.
-========================================== -->
+===================================================== -->
 <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="/">RP Internship Portal</a>
@@ -18,36 +17,34 @@ This navbar is shared with the feature owners identified below.
                 </li>
 
                 <% if (user) { %>
-                    <!-- Shared: ZELIA TAN LING RUI (25046792) - internship viewing;
-                    YAP CHIEN TING QUINA (25041331) - internship searching/filtering -->
                     <li class="nav-item">
                         <a class="nav-link" href="/internships">Internship Opportunities</a>
                     </li>
 
                     <% if (user.role === 'student') { %>
-                        <!-- Done by: SHAWN TAY YAO TING (25044598) - student profile -->
+                        <!-- Done By: SHAWN TAY YAO TING 25044598 - Student profile link -->
                         <li class="nav-item">
                             <a class="nav-link" href="/profile">RP Profile</a>
                         </li>
-                        <!-- Done by: WONG ZHI LI (25033271) - application tracking links -->
+                        <!-- Done By: WONG ZHI LI 25033271 - Application tracking links -->
                         <li class="nav-item">
                             <a class="nav-link" href="/myApplications">My Applications</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="/tracker">Tracker</a>
                         </li>
-                        <!-- Done by: YAP CHIEN TING QUINA (25041331) - saved internships -->
+                        <!-- Done By: YAP CHIEN TING QUINA 25041331 - Saved internships link -->
                         <li class="nav-item">
                             <a class="nav-link" href="/savedInternships">Saved Internships</a>
                         </li>
                     <% } %>
 
                     <% if (user.role === 'admin') { %>
-                        <!-- Done by: ZELIA TAN LING RUI (25046792) - internship CRUD -->
+                        <!-- Done By: ZELIA TAN LING RUI 25046792 - Internship CRUD link -->
                         <li class="nav-item">
                             <a class="nav-link" href="/addInternship">Add Internship</a>
                         </li>
-                        <!-- Done by: WONG ZHI LI (25033271) - admin application management -->
+                        <!-- Done By: WONG ZHI LI 25033271 - Admin application management link -->
                         <li class="nav-item">
                             <a class="nav-link" href="/applications">Applications</a>
                         </li>

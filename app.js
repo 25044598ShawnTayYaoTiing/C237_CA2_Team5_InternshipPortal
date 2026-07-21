@@ -7,13 +7,7 @@ const fs = require('fs');
 
 const app = express();
 
-// ==========================================
-// Shared contribution:
-// Done by: ZIN WITYEE AUNG (25040225) - registration school/diploma choices
-// Done by: ZELIA TAN LING RUI (25046792) - internship school/diploma choices
-// Done by: YAP CHIEN TING QUINA (25041331) - school and diploma filtering
-// Feature: School and Diploma Data
-// ==========================================
+// School and Diploma Data
 const schoolDiplomas = {
     SOI: [
         'Diploma in Enterprise Cloud Computing & Management',
@@ -76,12 +70,7 @@ const schoolNames = {
     SBZ: 'School of Business'
 };
 
-// ==========================================
-// Shared contribution:
-// Done by: ZELIA TAN LING RUI (25046792) - internship category data
-// Done by: YAP CHIEN TING QUINA (25041331) - category filtering
-// Feature: Internship Categories
-// ==========================================
+// Internship Categories
 const internshipCategories = [
     'Software Development', 'Cybersecurity', 'Cloud', 'Networking',
     'Data Analytics', 'AI', 'Healthcare', 'Engineering', 'Business', 'Design'
@@ -103,9 +92,8 @@ connection.connect((error) => {
     console.log('MySQL Database Connected!');
 });
 
-// Middleware
 // ==========================================
-// Done by: SHAWN TAY YAO TING (25044598)
+// Done By: SHAWN TAY YAO TING 25044598
 // Feature: Resume Upload and PDF Validation
 // ==========================================
 const storage = multer.diskStorage({
@@ -135,8 +123,9 @@ app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: false }));
 
 // ==========================================
-// Done by: ZIN WITYEE AUNG (25040225)
+// Done By: ZIN WITYEE AUNG 25040225
 // Feature: Session Management
+// Kept in shared setup because all routes use req.session.
 // ==========================================
 app.use(session({
     secret: 'c237-internship-portal-secret',
@@ -154,20 +143,18 @@ app.locals.schoolDiplomas = schoolDiplomas;
 app.locals.schoolNames = schoolNames;
 app.locals.internshipCategories = internshipCategories;
 
-// ==========================================
-// Shared contribution:
-// Done by: ZIN WITYEE AUNG (25040225) - registration validation
-// Done by: ZELIA TAN LING RUI (25046792) - internship form validation
-// Feature: School and Diploma Validation
-// ==========================================
+// School and Diploma Validation
 function isValidSchoolAndDiploma(school, diploma) {
     return schoolDiplomas[school] && schoolDiplomas[school].includes(diploma);
 }
 
-// ==========================================
-// Done by: ZIN WITYEE AUNG (25040225)
-// Feature: Authentication and Role-Based Access Control
-// ==========================================
+// =====================================================
+// Done By: ZIN WITYEE AUNG 25040225
+// ZOEY
+// User Registration, Login, Session Management
+// and Role-Based Access Control
+// =====================================================
+// Session middleware is kept in shared setup because routes depend on req.session.
 function checkAuthenticated(req, res, next) {
     if (!req.session.user) {
         return res.redirect('/login?error=Please+log+in+to+continue.');
@@ -194,15 +181,7 @@ function checkAdmin(req, res, next) {
     next();
 }
 
-app.get('/', (req, res) => {
-    res.render('index', { user: req.session.user || null });
-});
-
-// Authentication
-// ==========================================
-// Done by: ZIN WITYEE AUNG (25040225)
-// Feature: User Registration, Login and Logout
-// ==========================================
+// Zoey - Registration, login and logout routes
 app.get('/register', (req, res) => {
     if (req.session.user) {
         return res.redirect('/internships');
@@ -293,11 +272,277 @@ app.get('/logout', (req, res) => {
     });
 });
 
-// Student Profile and Resume
-// ==========================================
-// Done by: SHAWN TAY YAO TING (25044598)
-// Feature: Student Profile and Resume Management
-// ==========================================
+// =====================================================
+// Done By: ZELIA TAN LING RUI 25046792
+// ZELIA
+// Internship Viewing, Adding, Editing and Deleting
+// =====================================================
+app.get('/internships', checkAuthenticated, (req, res) => {
+    const search = (req.query.search || '').trim();
+    const school = req.session.user.role === 'student'
+        ? req.session.user.school
+        : (req.query.school || '');
+    const diploma = req.query.diploma || '';
+    const category = req.query.category || '';
+    let sql = `SELECT i.internshipId, i.companyName, i.jobTitle, i.location, i.allowance,
+               i.school, i.diploma, i.category,
+               DATE_FORMAT(i.closingDate, '%Y-%m-%d') AS closingDate,
+               (i.closingDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY)) AS closingSoon,
+               EXISTS (
+                   SELECT 1 FROM saved_internships s
+                   WHERE s.userId = ? AND s.internshipId = i.internshipId
+               ) AS isSaved
+               FROM internships i`;
+    let values = [req.session.user.userId];
+    const conditions = [];
+
+    if (school || req.session.user.role === 'student') {
+        conditions.push('i.school = ?');
+        values.push(school);
+    }
+    if (diploma) {
+        conditions.push('i.diploma = ?');
+        values.push(diploma);
+    }
+    if (category) {
+        conditions.push('i.category = ?');
+        values.push(category);
+    }
+    if (search) {
+        conditions.push('(i.companyName LIKE ? OR i.jobTitle LIKE ? OR i.location LIKE ?)');
+        values.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    if (conditions.length > 0) {
+        sql += ' WHERE ' + conditions.join(' AND ');
+    }
+    sql += ' ORDER BY i.internshipId DESC';
+
+    connection.query(sql, values, (error, results) => {
+        if (error) {
+            console.error('Internship list error:', error.message);
+            return res.send('Error retrieving internships');
+        }
+
+        res.render('internships', {
+            internships: results,
+            search,
+            selectedSchool: school,
+            selectedDiploma: diploma,
+            selectedCategory: category,
+            message: req.query.message || null
+        });
+    });
+});
+
+app.get('/internship/:internshipId', checkAuthenticated, (req, res) => {
+    let sql = `SELECT i.internshipId, i.companyName, i.jobTitle, i.location,
+                 i.allowance, i.description, i.requirements, i.school, i.diploma, i.category,
+                 DATE_FORMAT(i.closingDate, '%Y-%m-%d') AS closingDate,
+                 (i.closingDate IS NULL OR i.closingDate >= CURDATE()) AS isOpen,
+                 (i.closingDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY)) AS closingSoon,
+                 EXISTS (
+                     SELECT 1 FROM applications a
+                     WHERE a.userId = ? AND a.internshipId = i.internshipId
+                 ) AS hasApplied,
+                 EXISTS (
+                     SELECT 1 FROM saved_internships s
+                     WHERE s.userId = ? AND s.internshipId = i.internshipId
+                 ) AS isSaved
+                 FROM internships i
+                 WHERE i.internshipId = ?`;
+    const values = [req.session.user.userId, req.session.user.userId, req.params.internshipId];
+
+    if (req.session.user.role === 'student') {
+        sql += ' AND i.school = ?';
+        values.push(req.session.user.school);
+    }
+
+    connection.query(
+        sql,
+        values,
+        (error, results) => {
+            if (error) {
+                console.error('Internship details error:', error.message);
+                return res.send('Error retrieving internship');
+            }
+            if (results.length === 0) {
+                return res.status(404).render('error', { message: 'Internship not found.' });
+            }
+            res.render('internship', {
+                internship: results[0],
+                hasApplied: results[0].hasApplied === 1,
+                message: req.query.message || null,
+                error: req.query.error || null
+            });
+        }
+    );
+});
+
+// Zelia - Internship CRUD
+app.get('/addInternship', checkAuthenticated, checkAdmin, (req, res) => {
+    res.render('addInternship', { error: null, formData: {} });
+});
+
+app.post('/addInternship', checkAuthenticated, checkAdmin, (req, res) => {
+    const { companyName, jobTitle, description, location, allowance, requirements,
+        closingDate, school, diploma, category } = req.body;
+
+    if (!companyName || !jobTitle || !description || !location || !school || !diploma || !category) {
+        return res.render('addInternship', {
+            error: 'Company, job title, description, location, school, diploma and category are required.',
+            formData: req.body
+        });
+    }
+    if (!isValidSchoolAndDiploma(school, diploma) || !internshipCategories.includes(category)) {
+        return res.render('addInternship', {
+            error: 'Please select a valid school, diploma and category.',
+            formData: req.body
+        });
+    }
+
+    const sql = `INSERT INTO internships
+                 (companyName, jobTitle, description, location, allowance, requirements,
+                  closingDate, school, diploma, category)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const values = [companyName, jobTitle, description, location, allowance || null,
+        requirements || null, closingDate || null, school, diploma, category];
+
+    connection.query(sql, values, (error) => {
+        if (error) {
+            console.error('Add internship error:', error.message);
+            return res.send('Error adding internship');
+        }
+        res.redirect('/internships?message=Internship+added+successfully.');
+    });
+});
+
+// Edit internship - admin only
+app.get('/editInternship/:internshipId', checkAuthenticated, checkAdmin, (req, res) => {
+    const sql = `SELECT internshipId, companyName, jobTitle, description, location,
+                 allowance, requirements, school, diploma, category,
+                 DATE_FORMAT(closingDate, '%Y-%m-%d') AS closingDate
+                 FROM internships WHERE internshipId = ?`;
+
+    connection.query(sql, [req.params.internshipId], (error, results) => {
+        if (error) {
+            console.error('Edit internship page error:', error.message);
+            return res.send('Error retrieving internship');
+        }
+        if (results.length === 0) {
+            return res.status(404).render('error', { message: 'Internship not found.' });
+        }
+        res.render('editInternship', { internship: results[0], error: null });
+    });
+});
+
+app.post('/editInternship/:internshipId', checkAuthenticated, checkAdmin, (req, res) => {
+    const { companyName, jobTitle, description, location, allowance, requirements,
+        closingDate, school, diploma, category } = req.body;
+
+    if (!companyName || !jobTitle || !description || !location || !school || !diploma || !category) {
+        return res.render('editInternship', {
+            internship: { internshipId: req.params.internshipId, ...req.body },
+            error: 'Company, job title, description, location, school, diploma and category are required.'
+        });
+    }
+    if (!isValidSchoolAndDiploma(school, diploma) || !internshipCategories.includes(category)) {
+        return res.render('editInternship', {
+            internship: { internshipId: req.params.internshipId, ...req.body },
+            error: 'Please select a valid school, diploma and category.'
+        });
+    }
+
+    const sql = `UPDATE internships
+                 SET companyName = ?, jobTitle = ?, description = ?, location = ?,
+                 allowance = ?, requirements = ?, closingDate = ?, school = ?,
+                 diploma = ?, category = ?
+                 WHERE internshipId = ?`;
+    const values = [companyName, jobTitle, description, location, allowance || null,
+        requirements || null, closingDate || null, school, diploma, category,
+        req.params.internshipId];
+
+    connection.query(sql, values, (error) => {
+        if (error) {
+            console.error('Update internship error:', error.message);
+            return res.send('Error updating internship');
+        }
+        res.redirect('/internships?message=Internship+updated+successfully.');
+    });
+});
+
+app.post('/deleteInternship/:internshipId', checkAuthenticated, checkAdmin, (req, res) => {
+    const sql = 'DELETE FROM internships WHERE internshipId = ?';
+    connection.query(sql, [req.params.internshipId], (error) => {
+        if (error) {
+            console.error('Delete internship error:', error.message);
+            return res.send('This internship cannot be deleted while it has applications.');
+        }
+        res.redirect('/internships?message=Internship+deleted+successfully.');
+    });
+});
+
+// =====================================================
+// Done By: YAP CHIEN TING QUINA 25041331
+// QUINA
+// Internship Searching, Filtering
+// and Saved Internship Management
+// =====================================================
+// Search and filtering are inside GET /internships above because that route is shared with Zelia.
+app.post('/saveInternship/:internshipId', checkAuthenticated, checkStudent, (req, res) => {
+    const sql = `INSERT INTO saved_internships (userId, internshipId, savedDate)
+                 SELECT ?, internshipId, CURDATE() FROM internships
+                 WHERE internshipId = ? AND school = ?
+                 ON DUPLICATE KEY UPDATE savedId = savedId`;
+    connection.query(sql, [req.session.user.userId, req.params.internshipId,
+        req.session.user.school], (error, results) => {
+        if (error) {
+            console.error('Save internship error:', error.message);
+            return res.send('Error saving internship');
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).render('error', { message: 'Internship not found.' });
+        }
+        res.redirect('/internships?message=Internship+saved.');
+    });
+});
+
+app.post('/unsaveInternship/:internshipId', checkAuthenticated, checkStudent, (req, res) => {
+    const sql = 'DELETE FROM saved_internships WHERE userId = ? AND internshipId = ?';
+    connection.query(sql, [req.session.user.userId, req.params.internshipId], (error) => {
+        if (error) {
+            console.error('Unsave internship error:', error.message);
+            return res.send('Error removing saved internship');
+        }
+        res.redirect(req.body.from === 'saved' ? '/savedInternships' : '/internships');
+    });
+});
+
+app.get('/savedInternships', checkAuthenticated, checkStudent, (req, res) => {
+    const sql = `SELECT i.internshipId, i.companyName, i.jobTitle, i.location, i.allowance,
+                 DATE_FORMAT(i.closingDate, '%Y-%m-%d') AS closingDate,
+                 (i.closingDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY)) AS closingSoon
+                 FROM saved_internships s
+                 JOIN internships i ON s.internshipId = i.internshipId
+                 WHERE s.userId = ? AND i.school = ?
+                 ORDER BY s.savedId DESC`;
+
+    connection.query(sql, [req.session.user.userId, req.session.user.school], (error, results) => {
+        if (error) {
+            console.error('Saved internships error:', error.message);
+            return res.send('Error retrieving saved internships');
+        }
+        res.render('savedInternships', { internships: results });
+    });
+});
+
+// =====================================================
+// Done By: SHAWN TAY YAO TING 25044598
+// SHAWN
+// Student Profile, Resume Management
+// and Internship Application Submission
+// =====================================================
+// Resume upload configuration is kept in shared setup because upload.single(...) uses it.
+// Shawn - Student profile and resume management
 app.get('/profile', checkAuthenticated, checkStudent, (req, res) => {
     const sql = `SELECT name AS username, email, school, diploma
                  FROM users WHERE userId = ?`;
@@ -431,236 +676,7 @@ app.post('/deleteDocument/:documentId', checkAuthenticated, checkStudent, (req, 
     });
 });
 
-// Application Tracker
-// ==========================================
-// Done by: WONG ZHI LI (25033271)
-// Feature: Application Tracker and Status Counts
-// ==========================================
-app.get('/tracker', checkAuthenticated, checkStudent, (req, res) => {
-    const userId = req.session.user.userId;
-    const statsSql = `SELECT status, COUNT(*) AS total
-                      FROM applications
-                      WHERE userId = ?
-                      GROUP BY status`;
-
-    connection.query(statsSql, [userId], (statsError, statusResults) => {
-        if (statsError) {
-            console.error('Tracker statistics error:', statsError.message);
-            return res.send('Error retrieving tracker statistics');
-        }
-
-        const stats = {
-            total: 0,
-            Pending: 0,
-            Shortlisted: 0,
-            Interview: 0,
-            Offered: 0,
-            Accepted: 0,
-            Rejected: 0
-        };
-
-        for (const row of statusResults) {
-            stats.total += Number(row.total);
-            if (stats[row.status] !== undefined) {
-                stats[row.status] = Number(row.total);
-            }
-        }
-
-        const sql = `SELECT a.status,
-                     DATE_FORMAT(a.applicationDate, '%Y-%m-%d') AS appliedDate,
-                     i.companyName, i.jobTitle
-                     FROM applications a
-                     JOIN internships i ON a.internshipId = i.internshipId
-                     WHERE a.userId = ?
-                     ORDER BY a.applicationId DESC`;
-
-        connection.query(sql, [userId], (error, results) => {
-            if (error) {
-                console.error('Tracker applications error:', error.message);
-                return res.send('Error retrieving applications');
-            }
-            res.render('tracker', { stats, applications: results });
-        });
-    });
-});
-
-// Search and Saved Internships
-// ==========================================
-// Done by: ZELIA TAN LING RUI (25046792)
-// Feature: Internship List Retrieval and Rendering
-// ==========================================
-app.get('/internships', checkAuthenticated, (req, res) => {
-    // ==========================================
-    // Done by: YAP CHIEN TING QUINA (25041331)
-    // Feature: Search, School, Diploma and Category Filtering
-    // ==========================================
-    const search = (req.query.search || '').trim();
-    const school = req.session.user.role === 'student'
-        ? req.session.user.school
-        : (req.query.school || '');
-    const diploma = req.query.diploma || '';
-    const category = req.query.category || '';
-    let sql = `SELECT i.internshipId, i.companyName, i.jobTitle, i.location, i.allowance,
-               i.school, i.diploma, i.category,
-               DATE_FORMAT(i.closingDate, '%Y-%m-%d') AS closingDate,
-               (i.closingDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY)) AS closingSoon,
-               EXISTS (
-                   SELECT 1 FROM saved_internships s
-                   WHERE s.userId = ? AND s.internshipId = i.internshipId
-               ) AS isSaved
-               FROM internships i`;
-    let values = [req.session.user.userId];
-    const conditions = [];
-
-    if (school || req.session.user.role === 'student') {
-        conditions.push('i.school = ?');
-        values.push(school);
-    }
-    if (diploma) {
-        conditions.push('i.diploma = ?');
-        values.push(diploma);
-    }
-    if (category) {
-        conditions.push('i.category = ?');
-        values.push(category);
-    }
-    if (search) {
-        conditions.push('(i.companyName LIKE ? OR i.jobTitle LIKE ? OR i.location LIKE ?)');
-        values.push(`%${search}%`, `%${search}%`, `%${search}%`);
-    }
-    if (conditions.length > 0) {
-        sql += ' WHERE ' + conditions.join(' AND ');
-    }
-    sql += ' ORDER BY i.internshipId DESC';
-
-    connection.query(sql, values, (error, results) => {
-        if (error) {
-            console.error('Internship list error:', error.message);
-            return res.send('Error retrieving internships');
-        }
-
-        // ==========================================
-        // Done by: ZELIA TAN LING RUI (25046792)
-        // Feature: Internship List Rendering
-        // ==========================================
-        res.render('internships', {
-            internships: results,
-            search,
-            selectedSchool: school,
-            selectedDiploma: diploma,
-            selectedCategory: category,
-            message: req.query.message || null
-        });
-    });
-});
-
-// ==========================================
-// Shared contribution:
-// Done by: ZELIA TAN LING RUI (25046792) - internship details
-// Done by: YAP CHIEN TING QUINA (25041331) - saved and closing-soon information
-// Done by: SHAWN TAY YAO TING (25044598) - application availability information
-// Feature: Internship Details
-// ==========================================
-app.get('/internship/:internshipId', checkAuthenticated, (req, res) => {
-    let sql = `SELECT i.internshipId, i.companyName, i.jobTitle, i.location,
-                 i.allowance, i.description, i.requirements, i.school, i.diploma, i.category,
-                 DATE_FORMAT(i.closingDate, '%Y-%m-%d') AS closingDate,
-                 (i.closingDate IS NULL OR i.closingDate >= CURDATE()) AS isOpen,
-                 (i.closingDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY)) AS closingSoon,
-                 EXISTS (
-                     SELECT 1 FROM applications a
-                     WHERE a.userId = ? AND a.internshipId = i.internshipId
-                 ) AS hasApplied,
-                 EXISTS (
-                     SELECT 1 FROM saved_internships s
-                     WHERE s.userId = ? AND s.internshipId = i.internshipId
-                 ) AS isSaved
-                 FROM internships i
-                 WHERE i.internshipId = ?`;
-    const values = [req.session.user.userId, req.session.user.userId, req.params.internshipId];
-
-    if (req.session.user.role === 'student') {
-        sql += ' AND i.school = ?';
-        values.push(req.session.user.school);
-    }
-
-    connection.query(
-        sql,
-        values,
-        (error, results) => {
-            if (error) {
-                console.error('Internship details error:', error.message);
-                return res.send('Error retrieving internship');
-            }
-            if (results.length === 0) {
-                return res.status(404).render('error', { message: 'Internship not found.' });
-            }
-            res.render('internship', {
-                internship: results[0],
-                hasApplied: results[0].hasApplied === 1,
-                message: req.query.message || null,
-                error: req.query.error || null
-            });
-        }
-    );
-});
-
-// ==========================================
-// Done by: YAP CHIEN TING QUINA (25041331)
-// Feature: Save, Unsave and View Saved Internships
-// ==========================================
-app.post('/saveInternship/:internshipId', checkAuthenticated, checkStudent, (req, res) => {
-    const sql = `INSERT INTO saved_internships (userId, internshipId, savedDate)
-                 SELECT ?, internshipId, CURDATE() FROM internships
-                 WHERE internshipId = ? AND school = ?
-                 ON DUPLICATE KEY UPDATE savedId = savedId`;
-    connection.query(sql, [req.session.user.userId, req.params.internshipId,
-        req.session.user.school], (error, results) => {
-        if (error) {
-            console.error('Save internship error:', error.message);
-            return res.send('Error saving internship');
-        }
-        if (results.affectedRows === 0) {
-            return res.status(404).render('error', { message: 'Internship not found.' });
-        }
-        res.redirect('/internships?message=Internship+saved.');
-    });
-});
-
-app.post('/unsaveInternship/:internshipId', checkAuthenticated, checkStudent, (req, res) => {
-    const sql = 'DELETE FROM saved_internships WHERE userId = ? AND internshipId = ?';
-    connection.query(sql, [req.session.user.userId, req.params.internshipId], (error) => {
-        if (error) {
-            console.error('Unsave internship error:', error.message);
-            return res.send('Error removing saved internship');
-        }
-        res.redirect(req.body.from === 'saved' ? '/savedInternships' : '/internships');
-    });
-});
-
-app.get('/savedInternships', checkAuthenticated, checkStudent, (req, res) => {
-    const sql = `SELECT i.internshipId, i.companyName, i.jobTitle, i.location, i.allowance,
-                 DATE_FORMAT(i.closingDate, '%Y-%m-%d') AS closingDate,
-                 (i.closingDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY)) AS closingSoon
-                 FROM saved_internships s
-                 JOIN internships i ON s.internshipId = i.internshipId
-                 WHERE s.userId = ? AND i.school = ?
-                 ORDER BY s.savedId DESC`;
-
-    connection.query(sql, [req.session.user.userId, req.session.user.school], (error, results) => {
-        if (error) {
-            console.error('Saved internships error:', error.message);
-            return res.send('Error retrieving saved internships');
-        }
-        res.render('savedInternships', { internships: results });
-    });
-});
-
-// Applications
-// ==========================================
-// Done by: SHAWN TAY YAO TING (25044598)
-// Feature: Resume Selection and Application Form
-// ==========================================
+// Shawn - Resume selection and application form
 app.get('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) => {
     const sql = `SELECT i.internshipId, i.companyName, i.jobTitle,
                  DATE_FORMAT(i.closingDate, '%Y-%m-%d') AS closingDate,
@@ -704,118 +720,7 @@ app.get('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) => 
     });
 });
 
-// Internship CRUD
-// ==========================================
-// Done by: ZELIA TAN LING RUI (25046792)
-// Feature: Add, Edit and Delete Internships
-// ==========================================
-app.get('/addInternship', checkAuthenticated, checkAdmin, (req, res) => {
-    res.render('addInternship', { error: null, formData: {} });
-});
-
-app.post('/addInternship', checkAuthenticated, checkAdmin, (req, res) => {
-    const { companyName, jobTitle, description, location, allowance, requirements,
-        closingDate, school, diploma, category } = req.body;
-
-    if (!companyName || !jobTitle || !description || !location || !school || !diploma || !category) {
-        return res.render('addInternship', {
-            error: 'Company, job title, description, location, school, diploma and category are required.',
-            formData: req.body
-        });
-    }
-    if (!isValidSchoolAndDiploma(school, diploma) || !internshipCategories.includes(category)) {
-        return res.render('addInternship', {
-            error: 'Please select a valid school, diploma and category.',
-            formData: req.body
-        });
-    }
-
-    const sql = `INSERT INTO internships
-                 (companyName, jobTitle, description, location, allowance, requirements,
-                  closingDate, school, diploma, category)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    const values = [companyName, jobTitle, description, location, allowance || null,
-        requirements || null, closingDate || null, school, diploma, category];
-
-    connection.query(sql, values, (error) => {
-        if (error) {
-            console.error('Add internship error:', error.message);
-            return res.send('Error adding internship');
-        }
-        res.redirect('/internships?message=Internship+added+successfully.');
-    });
-});
-
-// Edit internship - admin only
-app.get('/editInternship/:internshipId', checkAuthenticated, checkAdmin, (req, res) => {
-    const sql = `SELECT internshipId, companyName, jobTitle, description, location,
-                 allowance, requirements, school, diploma, category,
-                 DATE_FORMAT(closingDate, '%Y-%m-%d') AS closingDate
-                 FROM internships WHERE internshipId = ?`;
-
-    connection.query(sql, [req.params.internshipId], (error, results) => {
-        if (error) {
-            console.error('Edit internship page error:', error.message);
-            return res.send('Error retrieving internship');
-        }
-        if (results.length === 0) {
-            return res.status(404).render('error', { message: 'Internship not found.' });
-        }
-        res.render('editInternship', { internship: results[0], error: null });
-    });
-});
-
-app.post('/editInternship/:internshipId', checkAuthenticated, checkAdmin, (req, res) => {
-    const { companyName, jobTitle, description, location, allowance, requirements,
-        closingDate, school, diploma, category } = req.body;
-
-    if (!companyName || !jobTitle || !description || !location || !school || !diploma || !category) {
-        return res.render('editInternship', {
-            internship: { internshipId: req.params.internshipId, ...req.body },
-            error: 'Company, job title, description, location, school, diploma and category are required.'
-        });
-    }
-    if (!isValidSchoolAndDiploma(school, diploma) || !internshipCategories.includes(category)) {
-        return res.render('editInternship', {
-            internship: { internshipId: req.params.internshipId, ...req.body },
-            error: 'Please select a valid school, diploma and category.'
-        });
-    }
-
-    const sql = `UPDATE internships
-                 SET companyName = ?, jobTitle = ?, description = ?, location = ?,
-                 allowance = ?, requirements = ?, closingDate = ?, school = ?,
-                 diploma = ?, category = ?
-                 WHERE internshipId = ?`;
-    const values = [companyName, jobTitle, description, location, allowance || null,
-        requirements || null, closingDate || null, school, diploma, category,
-        req.params.internshipId];
-
-    connection.query(sql, values, (error) => {
-        if (error) {
-            console.error('Update internship error:', error.message);
-            return res.send('Error updating internship');
-        }
-        res.redirect('/internships?message=Internship+updated+successfully.');
-    });
-});
-
-app.post('/deleteInternship/:internshipId', checkAuthenticated, checkAdmin, (req, res) => {
-    const sql = 'DELETE FROM internships WHERE internshipId = ?';
-    connection.query(sql, [req.params.internshipId], (error) => {
-        if (error) {
-            console.error('Delete internship error:', error.message);
-            return res.send('This internship cannot be deleted while it has applications.');
-        }
-        res.redirect('/internships?message=Internship+deleted+successfully.');
-    });
-});
-
-// Apply - student only
-// ==========================================
-// Done by: SHAWN TAY YAO TING (25044598)
-// Feature: Application Submission, Ownership Checks and Initial Pending Status
-// ==========================================
+// Shawn - Application submission, ownership checks and initial pending status
 app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) => {
     const userId = req.session.user.userId;
     const internshipId = req.params.internshipId;
@@ -890,12 +795,59 @@ app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) =>
     });
 });
 
-// A student can only view and withdraw their own applications.
-// ==========================================
-// Done by: WONG ZHI LI (25033271)
-// Feature: Student Application Tracking and Interview Information
-// Note: The withdrawal route below is not assigned in the contribution record.
-// ==========================================
+// =====================================================
+// Done By: WONG ZHI LI 25033271
+// JERRY
+// Application Tracking, Status Management,
+// Interviews and Offer Management
+// =====================================================
+app.get('/tracker', checkAuthenticated, checkStudent, (req, res) => {
+    const userId = req.session.user.userId;
+    const statsSql = `SELECT status, COUNT(*) AS total
+                      FROM applications
+                      WHERE userId = ?
+                      GROUP BY status`;
+
+    connection.query(statsSql, [userId], (statsError, statusResults) => {
+        if (statsError) {
+            console.error('Tracker statistics error:', statsError.message);
+            return res.send('Error retrieving tracker statistics');
+        }
+
+        const stats = {
+            total: 0,
+            Pending: 0,
+            Shortlisted: 0,
+            Interview: 0,
+            Offered: 0,
+            Accepted: 0,
+            Rejected: 0
+        };
+
+        for (const row of statusResults) {
+            stats.total += Number(row.total);
+            if (stats[row.status] !== undefined) {
+                stats[row.status] = Number(row.total);
+            }
+        }
+
+        const sql = `SELECT a.status,
+                     DATE_FORMAT(a.applicationDate, '%Y-%m-%d') AS appliedDate,
+                     i.companyName, i.jobTitle
+                     FROM applications a
+                     JOIN internships i ON a.internshipId = i.internshipId
+                     WHERE a.userId = ?
+                     ORDER BY a.applicationId DESC`;
+
+        connection.query(sql, [userId], (error, results) => {
+            if (error) {
+                console.error('Tracker applications error:', error.message);
+                return res.send('Error retrieving applications');
+            }
+            res.render('tracker', { stats, applications: results });
+        });
+    });
+});
 app.get('/myApplications', checkAuthenticated, checkStudent, (req, res) => {
     const sql = `SELECT a.applicationId, a.status,
                  DATE_FORMAT(a.applicationDate, '%Y-%m-%d') AS appliedDate,
@@ -921,10 +873,7 @@ app.get('/myApplications', checkAuthenticated, checkStudent, (req, res) => {
     });
 });
 
-// ==========================================
-// Done by: WONG ZHI LI (25033271)
-// Feature: Application Status History
-// ==========================================
+// Application Status History
 app.get('/application/:applicationId/history', checkAuthenticated, (req, res) => {
     let applicationSql = `SELECT a.applicationId, a.status, a.userId,
                           u.name AS username, i.companyName, i.jobTitle
@@ -968,26 +917,7 @@ app.get('/application/:applicationId/history', checkAuthenticated, (req, res) =>
     });
 });
 
-// Ownership note: The contribution record does not assign the withdrawal feature
-// to a specific team member, so no student is named for this route.
-app.post('/withdrawApplication/:applicationId', checkAuthenticated, checkStudent, (req, res) => {
-    const sql = 'DELETE FROM applications WHERE applicationId = ? AND userId = ?';
-    const values = [req.params.applicationId, req.session.user.userId];
-
-    connection.query(sql, values, (error) => {
-        if (error) {
-            console.error('Withdraw application error:', error.message);
-            return res.send('Error withdrawing application');
-        }
-        res.redirect('/myApplications?message=Application+withdrawn+successfully.');
-    });
-});
-
-// A student can only respond to their own offered application.
-// ==========================================
-// Done by: WONG ZHI LI (25033271)
-// Feature: Offer Acceptance and Rejection
-// ==========================================
+// Jerry - Offer acceptance and rejection
 function saveOfferResponse(req, res, newStatus) {
     const sql = `UPDATE applications SET status = ?
                  WHERE applicationId = ? AND userId = ? AND status = 'Offered'`;
@@ -1024,10 +954,6 @@ app.post('/application/:applicationId/declineOffer', checkAuthenticated, checkSt
 });
 
 // Admin Application Management
-// ==========================================
-// Done by: WONG ZHI LI (25033271)
-// Feature: Admin Application List, Status Workflow and Interviews
-// ==========================================
 app.get('/applications', checkAuthenticated, checkAdmin, (req, res) => {
     const status = req.query.status || '';
     let sql = `SELECT a.applicationId, a.status,
@@ -1118,6 +1044,28 @@ app.post('/updateApplication/:applicationId', checkAuthenticated, checkAdmin, (r
     });
 });
 
+// =====================================================
+// UNASSIGNED / GENERAL APPLICATION CODE
+// =====================================================
+app.get('/', (req, res) => {
+    res.render('index', { user: req.session.user || null });
+});
+
+// Ownership note: The contribution record does not assign the withdrawal feature
+// to a specific team member, so no student is named for this route.
+app.post('/withdrawApplication/:applicationId', checkAuthenticated, checkStudent, (req, res) => {
+    const sql = 'DELETE FROM applications WHERE applicationId = ? AND userId = ?';
+    const values = [req.params.applicationId, req.session.user.userId];
+
+    connection.query(sql, values, (error) => {
+        if (error) {
+            console.error('Withdraw application error:', error.message);
+            return res.send('Error withdrawing application');
+        }
+        res.redirect('/myApplications?message=Application+withdrawn+successfully.');
+    });
+});
+
 app.use((req, res) => {
     res.status(404).render('error', {
         message: 'Page not found.',
@@ -1125,6 +1073,9 @@ app.use((req, res) => {
     });
 });
 
+// =====================================================
+// SERVER STARTUP
+// =====================================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server started on http://localhost:${PORT}`);

@@ -1,10 +1,3 @@
-<!-- ==========================================
-Shared contribution:
-Done by: ZIN WITYEE AUNG (25040225) - login state and role-based visibility
-Done by: ZELIA TAN LING RUI (25046792) - internship entry point
-Done by: WONG ZHI LI (25033271) - application management entry points
-Feature: Portal Home Navigation
-========================================== -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -25,6 +18,10 @@ Feature: Portal Home Navigation
             <p>Welcome, <%= user.username %>. You are logged in as <%= user.role %>.</p>
 
             <div class="row mt-4 g-3">
+                <!-- =====================================================
+                Done By: ZELIA TAN LING RUI 25046792
+                Feature: Internship Opportunities Entry Point
+                ===================================================== -->
                 <div class="col-12 col-md-4">
                     <div class="card p-3 h-100 d-flex flex-column">
                         <h4>Internship Opportunities</h4>
@@ -34,6 +31,10 @@ Feature: Portal Home Navigation
                 </div>
 
                 <% if (user.role === 'student') { %>
+                    <!-- =====================================================
+                    Done By: WONG ZHI LI 25033271
+                    Feature: Student Applications Entry Point
+                    ===================================================== -->
                     <div class="col-12 col-md-4">
                         <div class="card p-3 h-100 d-flex flex-column">
                             <h4>My Applications</h4>
@@ -42,6 +43,10 @@ Feature: Portal Home Navigation
                         </div>
                     </div>
 
+                    <!-- =====================================================
+                    Done By: YAP CHIEN TING QUINA 25041331
+                    Feature: Saved Internships Entry Point
+                    ===================================================== -->
                     <div class="col-12 col-md-4">
                         <div class="card p-3 h-100 d-flex flex-column">
                             <h4>Saved Internships</h4>
@@ -52,6 +57,10 @@ Feature: Portal Home Navigation
                 <% } %>
 
                 <% if (user.role === 'admin') { %>
+                    <!-- =====================================================
+                    Done By: ZELIA TAN LING RUI 25046792
+                    Feature: Add Internship Entry Point
+                    ===================================================== -->
                     <div class="col-12 col-md-4">
                         <div class="card p-3 h-100 d-flex flex-column">
                             <h4>Add Internship</h4>
@@ -60,6 +69,10 @@ Feature: Portal Home Navigation
                         </div>
                     </div>
 
+                    <!-- =====================================================
+                    Done By: WONG ZHI LI 25033271
+                    Feature: Admin Applications Entry Point
+                    ===================================================== -->
                     <div class="col-12 col-md-4">
                         <div class="card p-3 h-100 d-flex flex-column">
                             <h4>Applications</h4>
