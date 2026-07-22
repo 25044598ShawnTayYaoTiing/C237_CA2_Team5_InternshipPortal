@@ -79,6 +79,17 @@
                         <% } %>
                     </select>
                 </div>
+                <!-- Added by Quina -->
+                <div class="col-md-2">
+                    <label for="sort" class="form-label">Sort By:</label>
+                    <select id="sort" name="sort" class="form-select">
+                        <option value="">Default</option>
+                        <option value="company_asc" <%= sortBy === 'company_asc' ? 'selected' : '' %>>Company (A-Z)</option>
+                        <option value="company_desc" <%= sortBy === 'company_desc' ? 'selected' : '' %>>Company (Z-A)</option>
+                        <option value="title_asc" <%= sortBy === 'title_asc' ? 'selected' : '' %>>Job Title (A-Z)</option>
+                        <option value="title_desc" <%= sortBy === 'title_desc' ? 'selected' : '' %>>Job Title (Z-A)</option>
+                    </select>
+                </div>
 
                 <div class="col-md-2 align-self-end">
                     <button type="submit" class="btn btn-primary">Filter</button>
