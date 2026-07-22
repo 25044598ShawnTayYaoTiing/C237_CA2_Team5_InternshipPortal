@@ -59,6 +59,7 @@ Feature: Student Profile and Multiple Resume Management
                             <th>Resume Name</th>
                             <th>Uploaded File</th>
                             <th>Upload Date</th>
+                            <th>Edit Name</th>
                             <th>View</th>
                             <th>Delete</th>
                         </tr>
@@ -69,6 +70,13 @@ Feature: Student Profile and Multiple Resume Management
                                 <td><%= documents[i].resumeName || documents[i].fileName %></td>
                                 <td><%= documents[i].fileName %></td>
                                 <td><%= documents[i].uploadedAt %></td>
+                                <td>
+                                    <form action="/editResumeName/<%= documents[i].documentId %>" method="POST" class="d-flex gap-2">
+                                        <input type="text" name="resumeName" class="form-control form-control-sm"
+                                            value="<%= documents[i].resumeName || documents[i].fileName %>" maxlength="100" required>
+                                        <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                                    </form>
+                                </td>
                                 <td><a href="/document/<%= documents[i].documentId %>" target="_blank" class="btn btn-dark btn-sm">View</a></td>
                                 <td>
                                     <form action="/deleteDocument/<%= documents[i].documentId %>" method="POST">
@@ -80,7 +88,7 @@ Feature: Student Profile and Multiple Resume Management
                         <% } %>
 
                         <% if (documents.length === 0) { %>
-                            <tr><td colspan="5" class="text-center">No resume documents uploaded.</td></tr>
+                            <tr><td colspan="6" class="text-center">No resume documents uploaded.</td></tr>
                         <% } %>
                     </tbody>
                 </table>

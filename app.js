@@ -92,35 +92,7 @@ connection.connect((error) => {
     console.log('MySQL Database Connected!');
 });
 
-// ==========================================
-// Done By: SHAWN TAY YAO TING 25044598
-// Feature: Resume Upload and PDF Validation
-// ==========================================
-const storage = multer.diskStorage({
-    destination: path.join(__dirname, 'public/uploads'),
-    filename: (req, file, callback) => {
-        let fileName = path.parse(file.originalname).name;
-        fileName = fileName.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 150);
-        callback(null, Date.now() + '-' + req.session.user.userId + '-' + fileName + '.pdf');
-    }
-});
 
-const upload = multer({
-    storage,
-    limits: { fileSize: 5 * 1024 * 1024 },
-    fileFilter: (req, file, callback) => {
-        const isPdf = file.mimetype === 'application/pdf' &&
-            path.extname(file.originalname).toLowerCase() === '.pdf';
-
-        if (!isPdf) {
-            return callback(new Error('Only PDF files are allowed.'));
-        }
-        callback(null, true);
-    }
-});
-
-app.set('view engine', 'ejs');
-app.use(express.urlencoded({ extended: false }));
 
 // ==========================================
 // Done By: ZIN WITYEE AUNG 25040225
@@ -549,6 +521,36 @@ app.get('/savedInternships', checkAuthenticated, checkStudent, (req, res) => {
     });
 });
 
+
+// ==========================================
+// Done By: SHAWN TAY YAO TING 25044598
+// Feature: Resume Upload and PDF Validation
+// ==========================================
+const storage = multer.diskStorage({
+    destination: path.join(__dirname, 'public/uploads'),
+    filename: (req, file, callback) => {
+        let fileName = path.parse(file.originalname).name;
+        fileName = fileName.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 150);
+        callback(null, Date.now() + '-' + req.session.user.userId + '-' + fileName + '.pdf');
+    }
+});
+
+const upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, callback) => {
+        const isPdf = file.mimetype === 'application/pdf' &&
+            path.extname(file.originalname).toLowerCase() === '.pdf';
+
+        if (!isPdf) {
+            return callback(new Error('Only PDF files are allowed.'));
+        }
+        callback(null, true);
+    }
+});
+
+app.set('view engine', 'ejs');
+app.use(express.urlencoded({ extended: false }));
 // =====================================================
 // Done By: SHAWN TAY YAO TING 25044598
 // SHAWN
@@ -616,6 +618,34 @@ app.post('/uploadResume', checkAuthenticated, checkStudent, (req, res) => {
             }
             res.redirect('/profile?message=Resume+uploaded+successfully.');
         });
+    });
+});
+
+// Done by: SHAWN TAY YAO TING 25044598
+app.post('/editResumeName/:documentId', checkAuthenticated, checkStudent, (req, res) => {
+    const resumeName = (req.body.resumeName || '').trim();
+
+    if (!resumeName) {
+        return res.redirect('/profile?error=Resume+name+is+required.');
+    }
+    if (resumeName.length > 100) {
+        return res.redirect('/profile?error=Resume+name+must+not+exceed+100+characters.');
+    }
+
+    const sql = `UPDATE documents
+                 SET resumeName = ?
+                 WHERE documentId = ? AND userId = ?`;
+    const values = [resumeName, req.params.documentId, req.session.user.userId];
+
+    connection.query(sql, values, (error, results) => {
+        if (error) {
+            console.error('Resume name update error:', error.message);
+            return res.send('Error updating resume name');
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).render('error', { message: 'Document not found.' });
+        }
+        res.redirect('/profile?message=Resume+name+updated+successfully.');
     });
 });
 
@@ -811,7 +841,7 @@ app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) =>
 
 // =====================================================
 // Done By: WONG ZHI LI 25033271
-// JERRY
+
 // Application Tracking, Status Management,
 // Interviews and Offer Management
 // =====================================================
