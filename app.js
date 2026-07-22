@@ -83,7 +83,7 @@ const internshipCategories = [
 const connection = mysql.createConnection({
     host: 'localhost',
     user: 'root',
-    password: 'Zoey12345!',
+    password: process.env.DB_PASSWORD || 'RP738964$',
     database: 'c237_team5_internshipportal'
 });
 
