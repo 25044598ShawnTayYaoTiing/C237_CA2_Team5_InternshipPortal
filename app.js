@@ -7,9 +7,6 @@ const fs = require('fs');
 
 const app = express();
 
-app.set('view engine', 'ejs');
-app.use(express.urlencoded({ extended: false }));
-
 // School and Diploma Data
 const schoolDiplomas = {
     SOI: [
@@ -83,7 +80,7 @@ const internshipCategories = [
 const connection = mysql.createConnection({
     host: 'localhost',
     user: 'root',
-    password: process.env.DB_PASSWORD || 'RP738964$',
+    password: 'RP738964$',
     database: 'c237_team5_internshipportal'
 });
 
@@ -538,8 +535,11 @@ const upload = multer({
     }
 });
 
+app.set('view engine', 'ejs');
+app.use(express.urlencoded({ extended: false }));
 // =====================================================
 // Done By: SHAWN TAY YAO TING 25044598
+// SHAWN
 // Student Profile, Resume Management
 // and Internship Application Submission
 // =====================================================
@@ -604,6 +604,34 @@ app.post('/uploadResume', checkAuthenticated, checkStudent, (req, res) => {
             }
             res.redirect('/profile?message=Resume+uploaded+successfully.');
         });
+    });
+});
+
+// Done by: SHAWN TAY YAO TING 25044598
+app.post('/editResumeName/:documentId', checkAuthenticated, checkStudent, (req, res) => {
+    const resumeName = (req.body.resumeName || '').trim();
+
+    if (!resumeName) {
+        return res.redirect('/profile?error=Resume+name+is+required.');
+    }
+    if (resumeName.length > 100) {
+        return res.redirect('/profile?error=Resume+name+must+not+exceed+100+characters.');
+    }
+
+    const sql = `UPDATE documents
+                 SET resumeName = ?
+                 WHERE documentId = ? AND userId = ?`;
+    const values = [resumeName, req.params.documentId, req.session.user.userId];
+
+    connection.query(sql, values, (error, results) => {
+        if (error) {
+            console.error('Resume name update error:', error.message);
+            return res.send('Error updating resume name');
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).render('error', { message: 'Document not found.' });
+        }
+        res.redirect('/profile?message=Resume+name+updated+successfully.');
     });
 });
 
@@ -799,6 +827,7 @@ app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) =>
 
 // =====================================================
 // Done By: WONG ZHI LI 25033271
+
 // Application Tracking, Status Management,
 // Interviews and Offer Management
 // =====================================================
