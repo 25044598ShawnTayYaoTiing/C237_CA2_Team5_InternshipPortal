@@ -7,6 +7,9 @@ const fs = require('fs');
 
 const app = express();
 
+app.set('view engine', 'ejs');
+app.use(express.urlencoded({ extended: false }));
+
 // School and Diploma Data
 const schoolDiplomas = {
     SOI: [
@@ -92,35 +95,7 @@ connection.connect((error) => {
     console.log('MySQL Database Connected!');
 });
 
-// ==========================================
-// Done By: SHAWN TAY YAO TING 25044598
-// Feature: Resume Upload and PDF Validation
-// ==========================================
-const storage = multer.diskStorage({
-    destination: path.join(__dirname, 'public/uploads'),
-    filename: (req, file, callback) => {
-        let fileName = path.parse(file.originalname).name;
-        fileName = fileName.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 150);
-        callback(null, Date.now() + '-' + req.session.user.userId + '-' + fileName + '.pdf');
-    }
-});
 
-const upload = multer({
-    storage,
-    limits: { fileSize: 5 * 1024 * 1024 },
-    fileFilter: (req, file, callback) => {
-        const isPdf = file.mimetype === 'application/pdf' &&
-            path.extname(file.originalname).toLowerCase() === '.pdf';
-
-        if (!isPdf) {
-            return callback(new Error('Only PDF files are allowed.'));
-        }
-        callback(null, true);
-    }
-});
-
-app.set('view engine', 'ejs');
-app.use(express.urlencoded({ extended: false }));
 
 // ==========================================
 // Done By: ZIN WITYEE AUNG 25040225
@@ -535,9 +510,36 @@ app.get('/savedInternships', checkAuthenticated, checkStudent, (req, res) => {
     });
 });
 
+
+// ==========================================
+// Done By: SHAWN TAY YAO TING 25044598
+// Feature: Resume Upload and PDF Validation
+// ==========================================
+const storage = multer.diskStorage({
+    destination: path.join(__dirname, 'public/uploads'),
+    filename: (req, file, callback) => {
+        let fileName = path.parse(file.originalname).name;
+        fileName = fileName.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 150);
+        callback(null, Date.now() + '-' + req.session.user.userId + '-' + fileName + '.pdf');
+    }
+});
+
+const upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, callback) => {
+        const isPdf = file.mimetype === 'application/pdf' &&
+            path.extname(file.originalname).toLowerCase() === '.pdf';
+
+        if (!isPdf) {
+            return callback(new Error('Only PDF files are allowed.'));
+        }
+        callback(null, true);
+    }
+});
+
 // =====================================================
 // Done By: SHAWN TAY YAO TING 25044598
-// SHAWN
 // Student Profile, Resume Management
 // and Internship Application Submission
 // =====================================================
@@ -797,7 +799,6 @@ app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) =>
 
 // =====================================================
 // Done By: WONG ZHI LI 25033271
-// JERRY
 // Application Tracking, Status Management,
 // Interviews and Offer Management
 // =====================================================
