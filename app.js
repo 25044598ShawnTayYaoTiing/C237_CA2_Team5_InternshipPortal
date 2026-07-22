@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
+app.use(express.urlencoded({ extended: false }));
 
 // School and Diploma Data
 const schoolDiplomas = {
@@ -78,11 +79,14 @@ const internshipCategories = [
 
 // Database Connection
 const connection = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'RP738964$',
-    database: 'c237_team5_internshipportal'
-});
+    host: 'c237-hannah-mysql.mysql.database.azure.com',
+    user: 'c237_027',
+    password: 'c237027@2026!',
+    database: 'c237_027_t5ca2',
+    ssl: {
+        rejectUnauthorized: false}
+    }
+);
 
 connection.connect((error) => {
     if (error) {
@@ -550,7 +554,6 @@ const upload = multer({
 });
 
 app.set('view engine', 'ejs');
-app.use(express.urlencoded({ extended: false }));
 // =====================================================
 // Done By: SHAWN TAY YAO TING 25044598
 // SHAWN
