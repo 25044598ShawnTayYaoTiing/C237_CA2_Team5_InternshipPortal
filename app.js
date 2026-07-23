@@ -7,6 +7,9 @@ const fs = require('fs');
 
 const app = express();
 
+app.set('view engine', 'ejs');
+app.use(express.urlencoded({ extended: false }));
+
 // School and Diploma Data
 const schoolDiplomas = {
     SOI: [
@@ -78,11 +81,14 @@ const internshipCategories = [
 
 // Database Connection
 const connection = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'RP738964$',
-    database: 'c237_team5_internshipportal'
-});
+    host: 'c237-hannah-mysql.mysql.database.azure.com',
+    user: 'c237_027',
+    password: 'c237027@2026!',
+    database: 'c237_027_t5ca2',
+    ssl: {
+        rejectUnauthorized: false}
+    }
+);
 
 connection.connect((error) => {
     if (error) {
@@ -516,7 +522,6 @@ const storage = multer.diskStorage({
     destination: path.join(__dirname, 'public/uploads'),
     filename: (req, file, callback) => {
         let fileName = path.parse(file.originalname).name;
-        fileName = fileName.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 150);
         callback(null, Date.now() + '-' + req.session.user.userId + '-' + fileName + '.pdf');
     }
 });
@@ -535,20 +540,16 @@ const upload = multer({
     }
 });
 
-app.set('view engine', 'ejs');
-app.use(express.urlencoded({ extended: false }));
 // =====================================================
 // Done By: SHAWN TAY YAO TING 25044598
-// SHAWN
 // Student Profile, Resume Management
 // and Internship Application Submission
 // =====================================================
-// Resume upload configuration is kept in shared setup because upload.single(...) uses it.
-// Shawn - Student profile and resume management
 app.get('/profile', checkAuthenticated, checkStudent, (req, res) => {
+    const userId = req.session.user.userId;
     const sql = `SELECT name AS username, email, school, diploma
                  FROM users WHERE userId = ?`;
-    connection.query(sql, [req.session.user.userId], (error, results) => {
+    connection.query(sql, [userId], (error, results) => {
         if (error) {
             console.error('Profile error:', error.message);
             return res.send('Error retrieving profile');
@@ -556,11 +557,12 @@ app.get('/profile', checkAuthenticated, checkStudent, (req, res) => {
         if (results.length === 0) {
             return res.status(404).render('error', { message: 'User not found.' });
         }
-        const documentSql = `SELECT documentId, resumeName, fileName, documentType,
+
+        const documentSql = `SELECT documentId, resumeName, fileName,
                              DATE_FORMAT(uploadedAt, '%Y-%m-%d %H:%i') AS uploadedAt
                              FROM documents WHERE userId = ?
                              ORDER BY documentId DESC`;
-        connection.query(documentSql, [req.session.user.userId], (documentError, documents) => {
+        connection.query(documentSql, [userId], (documentError, documents) => {
             if (documentError) {
                 console.error('Documents error:', documentError.message);
                 return res.send('Error retrieving documents');
@@ -576,6 +578,7 @@ app.get('/profile', checkAuthenticated, checkStudent, (req, res) => {
 });
 
 app.post('/uploadResume', checkAuthenticated, checkStudent, (req, res) => {
+    const userId = req.session.user.userId;
     upload.single('resume')(req, res, (uploadError) => {
         if (uploadError) {
             return res.redirect('/profile?error=' + encodeURIComponent(uploadError.message));
@@ -593,12 +596,12 @@ app.post('/uploadResume', checkAuthenticated, checkStudent, (req, res) => {
         const sql = `INSERT INTO documents
                      (userId, resumeName, fileName, storedFileName, filePath, documentType)
                      VALUES (?, ?, ?, ?, ?, ?)`;
-        const values = [req.session.user.userId, resumeName, req.file.originalname.slice(0, 255),
-            req.file.filename, `public/uploads/${req.file.filename}`, 'Resume'];
+        const values = [userId, resumeName, req.file.originalname.slice(0, 255),
+            req.file.filename, 'public/uploads/' + req.file.filename, 'Resume'];
 
         connection.query(sql, values, (error) => {
             if (error) {
-                console.error('Resume update error:', error.message);
+                console.error('Resume upload error:', error.message);
                 fs.unlink(req.file.path, () => {});
                 return res.send('Error saving resume');
             }
@@ -607,8 +610,8 @@ app.post('/uploadResume', checkAuthenticated, checkStudent, (req, res) => {
     });
 });
 
-// Done by: SHAWN TAY YAO TING 25044598
 app.post('/editResumeName/:documentId', checkAuthenticated, checkStudent, (req, res) => {
+    const userId = req.session.user.userId;
     const resumeName = (req.body.resumeName || '').trim();
 
     if (!resumeName) {
@@ -621,7 +624,7 @@ app.post('/editResumeName/:documentId', checkAuthenticated, checkStudent, (req, 
     const sql = `UPDATE documents
                  SET resumeName = ?
                  WHERE documentId = ? AND userId = ?`;
-    const values = [resumeName, req.params.documentId, req.session.user.userId];
+    const values = [resumeName, req.params.documentId, userId];
 
     connection.query(sql, values, (error, results) => {
         if (error) {
@@ -636,14 +639,14 @@ app.post('/editResumeName/:documentId', checkAuthenticated, checkStudent, (req, 
 });
 
 app.get('/document/:documentId', checkAuthenticated, (req, res) => {
-    let sql = `SELECT d.fileName, d.filePath FROM documents d
-               WHERE d.documentId = ?`;
-    let values = [req.params.documentId];
+    const user = req.session.user;
+    let sql = 'SELECT d.storedFileName FROM documents d WHERE d.documentId = ?';
+    const values = [req.params.documentId];
 
-    if (req.session.user.role === 'student') {
+    if (user.role === 'student') {
         sql += ' AND d.userId = ?';
-        values.push(req.session.user.userId);
-    } else if (req.session.user.role === 'admin') {
+        values.push(user.userId);
+    } else if (user.role === 'admin') {
         sql += ` AND EXISTS (
                     SELECT 1 FROM applications a WHERE a.resumeId = d.documentId
                  )`;
@@ -660,18 +663,19 @@ app.get('/document/:documentId', checkAuthenticated, (req, res) => {
             return res.status(404).render('error', { message: 'Document not found.' });
         }
 
-        const uploadsFolder = path.resolve(__dirname, 'public/uploads');
-        const filePath = path.resolve(__dirname, results[0].filePath);
-        if (!filePath.startsWith(uploadsFolder + path.sep) || !fs.existsSync(filePath)) {
+        const filePath = path.join(__dirname, 'public/uploads', results[0].storedFileName);
+        if (!fs.existsSync(filePath)) {
             return res.status(404).render('error', { message: 'Document file not found.' });
         }
+
         res.sendFile(filePath);
     });
 });
 
 app.post('/deleteDocument/:documentId', checkAuthenticated, checkStudent, (req, res) => {
-    const selectSql = 'SELECT filePath FROM documents WHERE documentId = ? AND userId = ?';
-    const values = [req.params.documentId, req.session.user.userId];
+    const userId = req.session.user.userId;
+    const selectSql = 'SELECT storedFileName FROM documents WHERE documentId = ? AND userId = ?';
+    const values = [req.params.documentId, userId];
 
     connection.query(selectSql, values, (selectError, results) => {
         if (selectError) {
@@ -682,8 +686,7 @@ app.post('/deleteDocument/:documentId', checkAuthenticated, checkStudent, (req, 
             return res.status(404).render('error', { message: 'Document not found.' });
         }
 
-        const deleteSql = 'DELETE FROM documents WHERE documentId = ? AND userId = ?';
-        connection.query(deleteSql, values, (error) => {
+        connection.query('DELETE FROM documents WHERE documentId = ? AND userId = ?', values, (error) => {
             if (error) {
                 if (error.code === 'ER_ROW_IS_REFERENCED_2') {
                     return res.redirect('/profile?error=This+resume+is+attached+to+an+application+and+cannot+be+deleted.');
@@ -692,22 +695,21 @@ app.post('/deleteDocument/:documentId', checkAuthenticated, checkStudent, (req, 
                 return res.send('Error deleting document');
             }
 
-            const uploadsFolder = path.resolve(__dirname, 'public/uploads');
-            const filePath = path.resolve(__dirname, results[0].filePath);
-            if (filePath.startsWith(uploadsFolder + path.sep)) {
-                fs.unlink(filePath, (fileError) => {
-                    if (fileError && fileError.code !== 'ENOENT') {
-                        console.error('Delete file error:', fileError.message);
-                    }
-                });
-            }
+            const filePath = path.join(__dirname, 'public/uploads', results[0].storedFileName);
+            fs.unlink(filePath, (fileError) => {
+                if (fileError && fileError.code !== 'ENOENT') {
+                    console.error('Delete file error:', fileError.message);
+                }
+            });
+
             res.redirect('/profile?message=Document+deleted+successfully.');
         });
     });
 });
 
-// Shawn - Resume selection and application form
 app.get('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) => {
+    const userId = req.session.user.userId;
+    const school = req.session.user.school;
     const sql = `SELECT i.internshipId, i.companyName, i.jobTitle,
                  DATE_FORMAT(i.closingDate, '%Y-%m-%d') AS closingDate,
                  (i.closingDate IS NULL OR i.closingDate >= CURDATE()) AS isOpen,
@@ -718,8 +720,7 @@ app.get('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) => 
                  FROM internships i
                  WHERE i.internshipId = ? AND i.school = ?`;
 
-    connection.query(sql, [req.session.user.userId, req.params.internshipId,
-        req.session.user.school], (error, results) => {
+    connection.query(sql, [userId, req.params.internshipId, school], (error, results) => {
         if (error) {
             console.error('Application form error:', error.message);
             return res.send('Error retrieving internship');
@@ -736,7 +737,7 @@ app.get('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) => 
         const documentSql = `SELECT documentId, resumeName, fileName, documentType
                              FROM documents WHERE userId = ?
                              ORDER BY documentId DESC`;
-        connection.query(documentSql, [req.session.user.userId], (documentError, documents) => {
+        connection.query(documentSql, [userId], (documentError, documents) => {
             if (documentError) {
                 console.error('Application documents error:', documentError.message);
                 return res.send('Error retrieving documents');
@@ -750,9 +751,9 @@ app.get('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) => 
     });
 });
 
-// Shawn - Application submission, ownership checks and initial pending status
 app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) => {
     const userId = req.session.user.userId;
+    const school = req.session.user.school;
     const internshipId = req.params.internshipId;
     const resumeId = req.body.resumeId;
     const coverLetter = (req.body.coverLetter || '').trim();
@@ -764,7 +765,7 @@ app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) =>
         return res.redirect(`/apply/${internshipId}?error=Cover+letter+must+not+exceed+1000+characters.`);
     }
 
-    const documentSql = 'SELECT documentId FROM documents WHERE documentId = ? AND userId = ?';
+    const documentSql = 'SELECT 1 FROM documents WHERE documentId = ? AND userId = ?';
     connection.query(documentSql, [resumeId, userId], (documentError, documentResults) => {
         if (documentError) {
             console.error('Resume check error:', documentError.message);
@@ -774,10 +775,10 @@ app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) =>
             return res.redirect(`/apply/${internshipId}?error=Invalid+resume+selection.`);
         }
 
-        const internshipSql = `SELECT internshipId FROM internships
+        const internshipSql = `SELECT 1 FROM internships
                                WHERE internshipId = ? AND school = ?
                                AND (closingDate IS NULL OR closingDate >= CURDATE())`;
-        connection.query(internshipSql, [internshipId, req.session.user.school], (internshipError, internshipResults) => {
+        connection.query(internshipSql, [internshipId, school], (internshipError, internshipResults) => {
             if (internshipError) {
                 console.error('Internship check error:', internshipError.message);
                 return res.send('Error checking internship');
@@ -786,39 +787,27 @@ app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) =>
                 return res.redirect(`/internship/${internshipId}?error=Internship+not+found+or+applications+are+closed.`);
             }
 
-            const duplicateSql = 'SELECT applicationId FROM applications WHERE userId = ? AND internshipId = ?';
-            connection.query(duplicateSql, [userId, internshipId], (duplicateError, duplicateResults) => {
-                if (duplicateError) {
-                    console.error('Duplicate application check error:', duplicateError.message);
-                    return res.send('Error checking application');
-                }
-                if (duplicateResults.length > 0) {
-                    return res.redirect(`/internship/${internshipId}?error=You+have+already+applied.`);
-                }
+            const insertSql = `INSERT INTO applications
+                               (userId, internshipId, resumeId, coverLetter, status, applicationDate)
+                               VALUES (?, ?, ?, ?, ?, CURDATE())`;
+            const values = [userId, internshipId, resumeId, coverLetter || null, 'Pending'];
 
-                const insertSql = `INSERT INTO applications
-                                   (userId, internshipId, resumeId, coverLetter, status, applicationDate)
-                                   VALUES (?, ?, ?, ?, ?, CURDATE())`;
-                const values = [userId, internshipId, resumeId, coverLetter || null, 'Pending'];
-
-                connection.query(insertSql, values, (error, results) => {
-                    if (error) {
-                        if (error.code === 'ER_DUP_ENTRY') {
-                            return res.redirect(`/internship/${internshipId}?error=You+have+already+applied.`);
-                        }
-                        console.error('Application error:', error.message);
-                        return res.send('Error submitting application');
+            connection.query(insertSql, values, (error, results) => {
+                if (error) {
+                    if (error.code === 'ER_DUP_ENTRY') {
+                        return res.redirect(`/internship/${internshipId}?error=You+have+already+applied.`);
                     }
+                    console.error('Application error:', error.message);
+                    return res.send('Error submitting application');
+                }
 
-                    const historySql = `INSERT INTO application_status_history
-                                        (applicationId, status) VALUES (?, ?)`;
-                    connection.query(historySql, [results.insertId, 'Pending'], (historyError) => {
-                        if (historyError) {
-                            console.error('Application history error:', historyError.message);
-                            return res.send('Application submitted, but status history could not be saved');
-                        }
-                        res.redirect(`/internship/${internshipId}?message=Application+submitted+successfully.`);
-                    });
+                const historySql = 'INSERT INTO application_status_history (applicationId, status) VALUES (?, ?)';
+                connection.query(historySql, [results.insertId, 'Pending'], (historyError) => {
+                    if (historyError) {
+                        console.error('Application history error:', historyError.message);
+                        return res.send('Application submitted, but status history could not be saved');
+                    }
+                    res.redirect(`/internship/${internshipId}?message=Application+submitted+successfully.`);
                 });
             });
         });
