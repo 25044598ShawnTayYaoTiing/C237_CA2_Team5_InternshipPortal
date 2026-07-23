@@ -518,6 +518,8 @@ app.get('/savedInternships', checkAuthenticated, checkStudent, (req, res) => {
 // Done By: SHAWN TAY YAO TING 25044598
 // Feature: Resume Upload and PDF Validation
 // ==========================================
+
+// Sets the folder and filename used to store uploaded resumes.
 const storage = multer.diskStorage({
     destination: path.join(__dirname, 'public/uploads'),
     filename: (req, file, callback) => {
@@ -526,6 +528,7 @@ const storage = multer.diskStorage({
     }
 });
 
+// Allows only PDF files and limits each resume to 5 MB.
 const upload = multer({
     storage,
     limits: { fileSize: 5 * 1024 * 1024 },
@@ -545,6 +548,8 @@ const upload = multer({
 // Student Profile, Resume Management
 // and Internship Application Submission
 // =====================================================
+
+// Retrieves the logged-in student's profile information and uploaded resumes.
 app.get('/profile', checkAuthenticated, checkStudent, (req, res) => {
     const userId = req.session.user.userId;
     const sql = `SELECT name AS username, email, school, diploma
@@ -577,6 +582,7 @@ app.get('/profile', checkAuthenticated, checkStudent, (req, res) => {
     });
 });
 
+// Uploads a PDF resume and saves its details for the logged-in student.
 app.post('/uploadResume', checkAuthenticated, checkStudent, (req, res) => {
     const userId = req.session.user.userId;
     upload.single('resume')(req, res, (uploadError) => {
@@ -610,6 +616,7 @@ app.post('/uploadResume', checkAuthenticated, checkStudent, (req, res) => {
     });
 });
 
+// Updates the custom name of a resume owned by the logged-in student.
 app.post('/editResumeName/:documentId', checkAuthenticated, checkStudent, (req, res) => {
     const userId = req.session.user.userId;
     const resumeName = (req.body.resumeName || '').trim();
@@ -638,6 +645,7 @@ app.post('/editResumeName/:documentId', checkAuthenticated, checkStudent, (req, 
     });
 });
 
+// Checks document access before sending the stored resume file.
 app.get('/document/:documentId', checkAuthenticated, (req, res) => {
     const user = req.session.user;
     let sql = 'SELECT d.storedFileName FROM documents d WHERE d.documentId = ?';
@@ -672,6 +680,7 @@ app.get('/document/:documentId', checkAuthenticated, (req, res) => {
     });
 });
 
+// Deletes an unused resume record and then removes its stored PDF file.
 app.post('/deleteDocument/:documentId', checkAuthenticated, checkStudent, (req, res) => {
     const userId = req.session.user.userId;
     const selectSql = 'SELECT storedFileName FROM documents WHERE documentId = ? AND userId = ?';
@@ -707,6 +716,7 @@ app.post('/deleteDocument/:documentId', checkAuthenticated, checkStudent, (req, 
     });
 });
 
+// Loads an eligible internship and the student's resumes for the application form.
 app.get('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) => {
     const userId = req.session.user.userId;
     const school = req.session.user.school;
@@ -751,6 +761,7 @@ app.get('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) => 
     });
 });
 
+// Validates the application details and saves a new application.
 app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) => {
     const userId = req.session.user.userId;
     const school = req.session.user.school;
@@ -765,6 +776,7 @@ app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) =>
         return res.redirect(`/apply/${internshipId}?error=Cover+letter+must+not+exceed+1000+characters.`);
     }
 
+    // Checks that the selected resume belongs to the logged-in student.
     const documentSql = 'SELECT 1 FROM documents WHERE documentId = ? AND userId = ?';
     connection.query(documentSql, [resumeId, userId], (documentError, documentResults) => {
         if (documentError) {
@@ -775,6 +787,7 @@ app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) =>
             return res.redirect(`/apply/${internshipId}?error=Invalid+resume+selection.`);
         }
 
+        // Checks that the internship is for the student's school and is still open.
         const internshipSql = `SELECT 1 FROM internships
                                WHERE internshipId = ? AND school = ?
                                AND (closingDate IS NULL OR closingDate >= CURDATE())`;
@@ -787,6 +800,7 @@ app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) =>
                 return res.redirect(`/internship/${internshipId}?error=Internship+not+found+or+applications+are+closed.`);
             }
 
+            // Saves the application with an initial Pending status.
             const insertSql = `INSERT INTO applications
                                (userId, internshipId, resumeId, coverLetter, status, applicationDate)
                                VALUES (?, ?, ?, ?, ?, CURDATE())`;
@@ -801,6 +815,7 @@ app.post('/apply/:internshipId', checkAuthenticated, checkStudent, (req, res) =>
                     return res.send('Error submitting application');
                 }
 
+                // Records the initial Pending status in the application history.
                 const historySql = 'INSERT INTO application_status_history (applicationId, status) VALUES (?, ?)';
                 connection.query(historySql, [results.insertId, 'Pending'], (historyError) => {
                     if (historyError) {
