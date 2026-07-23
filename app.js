@@ -6,9 +6,9 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
+app.use(express.urlencoded({ extended: false }));
 
 app.set('view engine', 'ejs');
-app.use(express.urlencoded({ extended: false }));
 
 // School and Diploma Data
 const schoolDiplomas = {
@@ -262,6 +262,7 @@ app.get('/internships', checkAuthenticated, (req, res) => {
         : (req.query.school || '');
     const diploma = req.query.diploma || '';
     const category = req.query.category || '';
+    const sortBy = req.query.sort || ''; // Added by YAP CHIEN TING QUINA 25041331
     let sql = `SELECT i.internshipId, i.companyName, i.jobTitle, i.location, i.allowance,
                i.school, i.diploma, i.category,
                DATE_FORMAT(i.closingDate, '%Y-%m-%d') AS closingDate,
@@ -301,9 +302,22 @@ app.get('/internships', checkAuthenticated, (req, res) => {
             return res.send('Error retrieving internships');
         }
 
+        // ADDED BY YAP CHIEN TING QUINA 25041331 - Sorting based on the selected sort option
+        if (sortBy === 'company_asc') {
+            results.sort((a, b) => a.companyName.localeCompare(b.companyName));
+        } else if (sortBy === 'company_desc') {
+            results.sort((a, b) => b.companyName.localeCompare(a.companyName));
+        } else if (sortBy === 'title_asc') {
+            results.sort((a, b) => a.jobTitle.localeCompare(b.jobTitle));
+        } else if (sortBy === 'title_desc') {
+            results.sort((a, b) => b.jobTitle.localeCompare(a.jobTitle));
+        }
+        // End 
+
         res.render('internships', {
             internships: results,
             search,
+            sortBy, // Added by Quina
             selectedSchool: school,
             selectedDiploma: diploma,
             selectedCategory: category,
